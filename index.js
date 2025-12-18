@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
@@ -12,6 +13,7 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch((err) => console.log("❌ Failed to connect to DB:", err.message));
+console.log("MONGO_URI =", process.env.MONGO_URI);
 
 
 app.get("/test", (req, res) => {
