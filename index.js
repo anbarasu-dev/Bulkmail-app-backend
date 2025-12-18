@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb+srv://anbu:123@cluster0.fvxwu3f.mongodb.net/passkey?appName=Cluster0")
+mongoose.connect(process.env.MONGO_URI)
   .then(function () {
     console.log("connect to db ✅");
   })
@@ -48,7 +48,7 @@ app.post("/sendmail", async function (req, res) {
     res.send(false); 
   }
 });
-
-app.listen(4000, function () {
-  console.log("server stared");
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, function () {
+  console.log("server stared on port",PORT);
 });
