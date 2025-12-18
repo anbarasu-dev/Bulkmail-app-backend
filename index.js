@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
@@ -7,22 +8,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
 mongoose.connect(process.env.MONGO_URI)
-  .then(function () {
-    console.log("connect to db ✅");
-  })
-  .catch(function () {
-    console.log("Failed to connected to db ❌");
-  });
+  .then(() => console.log("✅ Connected to MongoDB Atlas"))
+  .catch((err) => console.log("❌ Failed to connect to DB:", err.message));
 
 
-app.post("/sendmail", async function (req, res) {
+app.get("/test", (req, res) => {
+  if (mongoose.connection.readyState === 1) {
+    res.send("✅ MongoDB connected");
+  } else {
+    res.send("❌ MongoDB not connected");
+  }
+});
+
+
+app.post("/sendmail", async (req, res) => {
   const { msg, emaillist } = req.body;
 
-  const credential = mongoose.model("credential", {}, "bulkmail");
+ 
+  const Credential = mongoose.model("credential", {}, "bulkmail");
 
   try {
-    const data = await credential.find();
+    const data = await Credential.find();
+
+    if (!data.length) return res.status(400).send("No credentials found");
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -39,16 +49,16 @@ app.post("/sendmail", async function (req, res) {
         subject: "A Message from Bulk Mail App",
         text: msg,
       });
-      console.log("Email sent to: " + emaillist[i]);
+      console.log("Email sent to:", emaillist[i]);
     }
 
-    res.send(true); 
+    res.send(true);
   } catch (error) {
-    console.log(error);
-    res.send(false); 
+    console.log("Error sending email:", error);
+    res.send(false);
   }
 });
+
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, function () {
-  console.log("server stared on port",PORT);
-});
+app.listen(PORT, () => console.log(`🚀 Server started on port ${PORT}`));
