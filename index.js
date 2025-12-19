@@ -32,7 +32,7 @@ app.get("/test", (req, res) => {
 /* ===================== SEND MAIL ROUTE ===================== */
 app.post("/sendmail", async (req, res) => {
   try {
-    const { msg, emaillist } = req.body;
+    const { msg, emaillist } = req.body || {};
 
     // Input validation
     if (!msg || !emaillist || !Array.isArray(emaillist) || emaillist.length === 0) {
@@ -63,7 +63,7 @@ app.post("/sendmail", async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user, pass },
-      tls: { rejectUnauthorized: false }, // Needed for Render
+      tls: { rejectUnauthorized: false },
     });
 
     // Send emails concurrently
@@ -81,13 +81,13 @@ app.post("/sendmail", async (req, res) => {
     console.log("✅ All emails sent successfully");
     res.send({ success: true });
   } catch (error) {
-    console.error("❌ Sendmail error:", error); // logs full error
+    console.error("❌ Sendmail error:", error);
     res.status(500).send({ success: false, message: "Server error", error: error.message });
   }
 });
 
 /* ===================== START SERVER ===================== */
-const PORT = 4000; // Default port
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
