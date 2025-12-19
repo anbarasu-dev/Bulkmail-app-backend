@@ -1,13 +1,16 @@
 /* ===================== IMPORTS ===================== */
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
+const sgMail = require("@sendgrid/mail");
 
 /* ===================== APP SETUP ===================== */
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
+
+/* ===================== SENDGRID SETUP ===================== */
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /* ===================== DATABASE CONNECTION ===================== */
 mongoose
@@ -22,11 +25,7 @@ mongoose
 
 /* ===================== TEST ROUTE ===================== */
 app.get("/test", (req, res) => {
-  if (mongoose.connection.readyState === 1) {
-    res.send("✅ MongoDB connected");
-  } else {
-    res.send("❌ MongoDB not connected");
-  }
+  res.send("✅ Backend + DB working");
 });
 
 /* ===================== SEND MAIL ROUTE ===================== */
@@ -34,55 +33,34 @@ app.post("/sendmail", async (req, res) => {
   try {
     const { msg, emaillist } = req.body || {};
 
-    // Input validation
-    if (!msg || !emaillist || !Array.isArray(emaillist) || emaillist.length === 0) {
-      return res.status(400).send({ success: false, message: "Invalid input" });
+    if (!msg || !Array.isArray(emaillist) || emaillist.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid input"
+      });
     }
 
-    // MongoDB model for credentials
-    const Credential = mongoose.model(
-      "credential",
-      new mongoose.Schema({}, { strict: false }),
-      "bulkmail"
-    );
+    const messages = emaillist.map((email) => ({
+      to: email,
+      from: "your_verified_sendgrid_email@gmail.com", // MUST be verified
+      subject: "You got a message from BulkMail App",
+      text: msg
+    }));
 
-    const data = await Credential.find();
+    await Promise.all(messages.map((m) => sgMail.send(m)));
 
-    if (!data.length || !data[0].user || !data[0].pass) {
-      console.log("❌ No credentials found in DB");
-      return res.status(400).send({ success: false, message: "No email credentials" });
-    }
+    console.log("✅ All emails sent via SendGrid");
+    res.json({ success: true });
 
-    const user = data[0].user; // Gmail email
-    const pass = data[0].pass; // Gmail App Password
-
-    console.log("📧 Using mail:", user);
-    console.log("📨 Sending to:", emaillist.length, "emails");
-
-    // Nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user, pass },
-      tls: { rejectUnauthorized: false },
-    });
-
-    // Send emails concurrently
-    await Promise.all(
-      emaillist.map((email) =>
-        transporter.sendMail({
-          from: user,
-          to: email,
-          subject: "A Message from Bulk Mail App",
-          text: msg,
-        })
-      )
-    );
-
-    console.log("✅ All emails sent successfully");
-    res.send({ success: true });
   } catch (error) {
-    console.error("❌ Sendmail error:", error);
-    res.status(500).send({ success: false, message: "Server error", error: error.message });
+    console.error(
+      "❌ SendGrid error:",
+      error.response?.body || error.message
+    );
+    res.status(500).json({
+      success: false,
+      message: "Email sending failed"
+    });
   }
 });
 
