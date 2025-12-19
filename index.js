@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const mongoose = require("mongoose");
-require("dotenv").config();
+
 
 const app = express();
 
@@ -12,7 +12,7 @@ app.use(express.json());
 
 /* ===================== DATABASE ===================== */
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect("mongodb+srv://anbu:123@cluster0.fvxwu3f.mongodb.net/passkey?appName=Cluster0")
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
@@ -87,7 +87,7 @@ app.post("/sendmail", async (req, res) => {
 });
 
 /* ===================== SERVER ===================== */
-const PORT = process.env.PORT || 4000;
+const PORT=4000
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
