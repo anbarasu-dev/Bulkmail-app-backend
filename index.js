@@ -9,14 +9,14 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-/* ===================== DATABASE ===================== */
+/* ===================== DATABASE CONNECTION ===================== */
 mongoose
   .connect(
     "mongodb+srv://anbu:123@cluster0.fvxwu3f.mongodb.net/passkey?appName=Cluster0"
   )
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
+    console.error("❌ MongoDB connection failed:", err);
     process.exit(1);
   });
 
@@ -36,7 +36,7 @@ app.post("/sendmail", async (req, res) => {
 
     // Input validation
     if (!msg || !emaillist || !Array.isArray(emaillist) || emaillist.length === 0) {
-      return res.status(400).send(false);
+      return res.status(400).send({ success: false, message: "Invalid input" });
     }
 
     // MongoDB model for credentials
@@ -48,9 +48,9 @@ app.post("/sendmail", async (req, res) => {
 
     const data = await Credential.find();
 
-    if (!data.length) {
+    if (!data.length || !data[0].user || !data[0].pass) {
       console.log("❌ No credentials found in DB");
-      return res.status(400).send(false);
+      return res.status(400).send({ success: false, message: "No email credentials" });
     }
 
     const user = data[0].user; // Gmail email
@@ -66,27 +66,28 @@ app.post("/sendmail", async (req, res) => {
       tls: { rejectUnauthorized: false }, // Needed for Render
     });
 
-    // Send emails
-    for (const email of emaillist) {
-      await transporter.sendMail({
-        from: user,
-        to: email,
-        subject: "A Message from Bulk Mail App",
-        text: msg,
-      });
-      console.log("✅ Sent to:", email);
-    }
+    // Send emails concurrently
+    await Promise.all(
+      emaillist.map((email) =>
+        transporter.sendMail({
+          from: user,
+          to: email,
+          subject: "A Message from Bulk Mail App",
+          text: msg,
+        })
+      )
+    );
 
-    // Success
-    res.send(true);
+    console.log("✅ All emails sent successfully");
+    res.send({ success: true });
   } catch (error) {
-    console.error("❌ Sendmail error:", error.message);
-    res.status(500).send(false);
+    console.error("❌ Sendmail error:", error); // logs full error
+    res.status(500).send({ success: false, message: "Server error", error: error.message });
   }
 });
 
 /* ===================== START SERVER ===================== */
-const PORT = 4000; // You can also use process.env.PORT if you want
+const PORT = 4000; // Default port
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
