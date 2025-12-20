@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const sgMail = require("@sendgrid/mail");
+require("dotenv").config();
 
 /* ===================== APP SETUP ===================== */
 const app = express();
@@ -14,42 +15,36 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /* ===================== DATABASE CONNECTION ===================== */
 mongoose
-  .connect(
-    "mongodb+srv://anbu:123@cluster0.fvxwu3f.mongodb.net/passkey?appName=Cluster0"
-  )
-  .then(() => console.log("✅ Connected to MongoDB Atlas"))
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err);
-    process.exit(1);
+    console.error("❌ MongoDB connection failed:", err.message);
   });
-
-/* ===================== TEST ROUTE ===================== */
-app.get("/test", (req, res) => {
-  res.send("✅ Backend + DB working");
-});
 
 /* ===================== SEND MAIL ROUTE ===================== */
 app.post("/sendmail", async (req, res) => {
   try {
-    const { msg, emaillist } = req.body || {};
+    const { msg, emaillist } = req.body;
 
     if (!msg || !Array.isArray(emaillist) || emaillist.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Invalid input"
+        message: "Message or email list missing"
       });
     }
 
-    const messages = emaillist.map((email) => ({
-      to: email,
-      from: "your_verified_sendgrid_email@gmail.com", // MUST be verified
-      subject: "You got a message from BulkMail App",
-      text: msg
-    }));
+    for (const email of emaillist) {
+      await sgMail.send({
+        to: email,
+        from: process.env.EMAIL_FROM, // ✅ VERIFIED EMAIL ONLY
+        subject: "You got a message from BulkMail App",
+        text: msg,
+        html: `<p>${msg}</p>`
+      });
 
-    await Promise.all(messages.map((m) => sgMail.send(m)));
+      console.log("📧 Mail sent to:", email);
+    }
 
-    console.log("✅ All emails sent via SendGrid");
     res.json({ success: true });
 
   } catch (error) {
@@ -57,6 +52,7 @@ app.post("/sendmail", async (req, res) => {
       "❌ SendGrid error:",
       error.response?.body || error.message
     );
+
     res.status(500).json({
       success: false,
       message: "Email sending failed"
