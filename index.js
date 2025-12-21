@@ -1,18 +1,20 @@
+// index.js
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const sgMail = require("@sendgrid/mail");
 require("dotenv").config();
 
-
 const app = express();
+
+// Middlewares
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-
+// Set SendGrid API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-
+// Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
@@ -20,12 +22,12 @@ mongoose
     console.error("❌ MongoDB connection failed:", err.message)
   );
 
-
+// Health check route
 app.get("/", (req, res) => {
   res.send("✅ BulkMail Backend is running");
 });
 
-
+// SendMail route
 app.post("/sendmail", async (req, res) => {
   try {
     const { msg, emaillist } = req.body;
@@ -37,12 +39,28 @@ app.post("/sendmail", async (req, res) => {
       });
     }
 
+    // Filter invalid emails
+    const validEmails = emaillist.filter(
+      (email) => typeof email === "string" && email.includes("@")
+    );
+
+    if (validEmails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid emails to send"
+      });
+    }
+
+    console.log("📩 Sending emails to:", validEmails);
+    console.log("📩 Message content:", msg);
+
     
-    for (const email of emaillist) {
+    for (const email of validEmails) {
       await sgMail.send({
         to: email,
-        from: process.env.EMAIL_FROM, 
+        from: process.env.EMAIL_FROM, // Must be verified in SendGrid
         subject: "📧 Message from BulkMail App",
+        text: msg, // Plain text version
         html: `
           <div style="font-family: Arial, sans-serif; line-height: 1.6;">
             <h2>Bulk Mail Message</h2>
@@ -53,10 +71,10 @@ app.post("/sendmail", async (req, res) => {
         `
       });
 
-      console.log("📨 Email sent to:", email);
+      console.log("✅ Email sent to:", email);
     }
 
-    res.json({ success: true });
+    res.json({ success: true, message: "Emails sent successfully" });
 
   } catch (error) {
     console.error(
@@ -71,7 +89,7 @@ app.post("/sendmail", async (req, res) => {
   }
 });
 
-
+// Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
