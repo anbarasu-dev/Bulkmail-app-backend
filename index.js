@@ -1,27 +1,31 @@
-/* ===================== IMPORTS ===================== */
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const sgMail = require("@sendgrid/mail");
 require("dotenv").config();
 
-/* ===================== APP SETUP ===================== */
+
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-/* ===================== SENDGRID SETUP ===================== */
+
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-/* ===================== DATABASE CONNECTION ===================== */
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))
-  .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
-  });
+  .catch((err) =>
+    console.error("❌ MongoDB connection failed:", err.message)
+  );
 
-/* ===================== SEND MAIL ROUTE ===================== */
+
+app.get("/", (req, res) => {
+  res.send("✅ BulkMail Backend is running");
+});
+
+
 app.post("/sendmail", async (req, res) => {
   try {
     const { msg, emaillist } = req.body;
@@ -33,23 +37,30 @@ app.post("/sendmail", async (req, res) => {
       });
     }
 
+    
     for (const email of emaillist) {
       await sgMail.send({
         to: email,
-        from: process.env.EMAIL_FROM, // ✅ VERIFIED EMAIL ONLY
-        subject: "You got a message from BulkMail App",
-        text: msg,
-        html: `<p>${msg}</p>`
+        from: process.env.EMAIL_FROM, 
+        subject: "📧 Message from BulkMail App",
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <h2>Bulk Mail Message</h2>
+            <p>${msg.replace(/\n/g, "<br/>")}</p>
+            <hr/>
+            <small>Sent using BulkMail App</small>
+          </div>
+        `
       });
 
-      console.log("📧 Mail sent to:", email);
+      console.log("📨 Email sent to:", email);
     }
 
     res.json({ success: true });
 
   } catch (error) {
     console.error(
-      "❌ SendGrid error:",
+      "❌ SendGrid Error:",
       error.response?.body || error.message
     );
 
@@ -60,7 +71,7 @@ app.post("/sendmail", async (req, res) => {
   }
 });
 
-/* ===================== START SERVER ===================== */
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
